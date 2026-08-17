@@ -275,7 +275,7 @@ html, body {
 }
 
 .settings-text-input {
-  width: 120px;
+  width: 130px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
@@ -287,6 +287,23 @@ html, body {
 
 .settings-text-input:focus {
   border-color: var(--accent-gold);
+}
+
+.settings-tip {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  line-height: 1.35;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--accent-gold);
+}
+
+.settings-tip code {
+  color: var(--accent-gold);
+  background: rgba(212, 175, 55, 0.1);
+  padding: 1px 3px;
+  border-radius: 2px;
 }
 
 .feedback-badge {
@@ -482,6 +499,26 @@ html, body {
   font-weight: 600;
 }
 
+.stash-notice-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px dashed rgba(212, 175, 55, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 9.5px;
+  color: var(--text-secondary);
+}
+
+.stash-icon {
+  font-size: 11px;
+}
+
+.stash-text strong {
+  color: var(--accent-gold);
+}
+
 .error-alert-banner {
   display: flex;
   align-items: center;
@@ -609,11 +646,26 @@ html, body {
   gap: 1px;
 }
 
+.summary-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .summary-label {
   font-size: 10px;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+.stash-active-badge {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--accent-gold);
+  background: rgba(212, 175, 55, 0.15);
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
 .total-display {
@@ -842,7 +894,7 @@ html, body {
 .empty-desc {
   font-size: 10px;
   color: var(--text-muted);
-  max-width: 220px;
+  max-width: 240px;
   line-height: 1.3;
 }
 

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { parsePoeItemList, GggRawItem } from "./poeItemParser";
 import { PoeItem } from "../../types/item";
+import { StashTabSummary } from "../../types/settings";
 import { isTauri } from "../http/isTauri";
 
 export interface GggCharacter {
@@ -47,7 +48,6 @@ class PoeApiService {
       return MOCK_CHARACTERS;
     }
 
-    // 1. If running inside Tauri desktop app: use direct native Rust command
     if (isTauri()) {
       try {
         const rawJson = await invoke<string>("fetch_characters", {
@@ -66,7 +66,7 @@ class PoeApiService {
       }
     }
 
-    // 2. If running inside standard browser tab (npm run dev): use browser proxy fallback
+    // Browser fallback
     try {
       const encodedAccount = encodeURIComponent(cleanAccount);
       const targetUrl = `https://www.pathofexile.com/character-window/get-characters?accountName=${encodedAccount}&realm=${realm}`;
@@ -150,6 +150,87 @@ class PoeApiService {
     }
 
     return { character: null, items: [] };
+  }
+
+  /**
+   * Fetches stash tabs list for a given account and league
+   */
+  public async getStashTabs(
+    accountName: string,
+    league: string,
+    poesessid?: string | null,
+    realm: string = "pc"
+  ): Promise<{ numTabs: number; tabs: StashTabSummary[]; items: PoeItem[] }> {
+    const cleanAccount = accountName.trim();
+    const cleanLeague = league.trim();
+
+    if (isTauri()) {
+      try {
+        const rawJson = await invoke<string>("fetch_stash_tabs", {
+          accountName: cleanAccount,
+          league: cleanLeague,
+          poesessid: poesessid || null,
+          realm: realm,
+        });
+
+        const data = JSON.parse(rawJson);
+        const tabs: StashTabSummary[] = (data.tabs || []).map((t: { i: number; n: string; type: string; colour?: { r: number; g: number; b: number } }) => ({
+          i: t.i,
+          n: t.n,
+          type: t.type,
+          color: t.colour,
+          selected: true,
+        }));
+        const rawItems: GggRawItem[] = data.items || [];
+        const items = parsePoeItemList(rawItems);
+
+        return {
+          numTabs: data.numTabs || tabs.length,
+          tabs,
+          items,
+        };
+      } catch (err) {
+        const msg = typeof err === "string" ? err : (err instanceof Error ? err.message : String(err));
+        throw new Error(msg);
+      }
+    }
+
+    return { numTabs: 0, tabs: [], items: [] };
+  }
+
+  /**
+   * Fetches items from a specific stash tab index
+   */
+  public async getStashTabItems(
+    accountName: string,
+    league: string,
+    tabIndex: number,
+    poesessid?: string | null,
+    realm: string = "pc"
+  ): Promise<PoeItem[]> {
+    const cleanAccount = accountName.trim();
+    const cleanLeague = league.trim();
+
+    if (isTauri()) {
+      try {
+        const rawJson = await invoke<string>("fetch_stash_items", {
+          accountName: cleanAccount,
+          league: cleanLeague,
+          tabIndex,
+          poesessid: poesessid || null,
+          realm: realm,
+        });
+
+        const data = JSON.parse(rawJson);
+        const rawItems: GggRawItem[] = data.items || [];
+        return parsePoeItemList(rawItems);
+      } catch (err) {
+        console.warn(`Failed to fetch tab ${tabIndex}`, err);
+        return [];
+      }
+    }
+
+    return [];
   }
 }
 
