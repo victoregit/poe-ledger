@@ -1,7 +1,12 @@
+import { useState } from "react";
 import { useSettings } from "../../stores/settingsStore";
+import { useAuth } from "../../stores/authStore";
 
 export function SettingsView() {
   const [settings, setSettings] = useSettings();
+  const { accountName, connectAccount, logout, isLoading } = useAuth();
+  const [accountInput, setAccountInput] = useState(accountName || "");
+  const [accountFeedback, setAccountFeedback] = useState<string | null>(null);
 
   const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value);
@@ -42,8 +47,67 @@ export function SettingsView() {
     }));
   };
 
+  const handleSaveAccount = async () => {
+    if (!accountInput.trim()) return;
+    setAccountFeedback(null);
+    const success = await connectAccount(accountInput.trim());
+    if (success) {
+      setAccountFeedback("Conta conectada com sucesso!");
+      setTimeout(() => setAccountFeedback(null), 3000);
+    } else {
+      setAccountFeedback("Falha ao conectar. Verifique se o nome está correto e público.");
+    }
+  };
+
   return (
     <div className="module-view settings-view">
+      {/* Account Settings */}
+      <div className="settings-section">
+        <h3 className="section-title">Conta Path of Exile</h3>
+        
+        <div className="setting-row">
+          <div className="setting-info">
+            <span className="setting-name">Nome da Conta</span>
+            <span className="setting-subtext">Nome da sua conta pública no PoE</span>
+          </div>
+          <div className="setting-control account-connect-row">
+            <input
+              type="text"
+              className="settings-text-input"
+              placeholder="Ex: SeuNick"
+              value={accountInput}
+              onChange={(e) => setAccountInput(e.target.value)}
+            />
+            <button
+              type="button"
+              className="btn-submit"
+              onClick={handleSaveAccount}
+              disabled={isLoading || !accountInput.trim()}
+            >
+              {isLoading ? "..." : "Conectar"}
+            </button>
+            {accountName && (
+              <button
+                type="button"
+                className="btn-cancel"
+                onClick={() => {
+                  logout();
+                  setAccountInput("");
+                }}
+                title="Desconectar conta"
+              >
+                Sair
+              </button>
+            )}
+          </div>
+        </div>
+        {accountFeedback && (
+          <div className={`feedback-badge ${accountFeedback.includes("sucesso") ? "success" : "error"}`}>
+            {accountFeedback}
+          </div>
+        )}
+      </div>
+
       <div className="settings-section">
         <h3 className="section-title">Overlay & Interface</h3>
         
