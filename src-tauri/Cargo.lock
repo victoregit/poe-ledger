@@ -2726,6 +2726,7 @@ dependencies = [
  "tauri-plugin-global-shortcut",
  "tauri-plugin-http",
  "tauri-plugin-opener",
+ "url",
  "urlencoding",
 ]
 

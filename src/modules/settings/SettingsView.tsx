@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSettings } from "../../stores/settingsStore";
 import { useAuth } from "../../stores/authStore";
+import { gameWatcherService, GameStatus } from "../../services/game/gameWatcherService";
 
 export function SettingsView() {
   const [settings, setSettings] = useSettings();
@@ -8,6 +9,13 @@ export function SettingsView() {
   const [accountInput, setAccountInput] = useState(accountName || "");
   const [poesessidInput, setPoesessidInput] = useState(settings.account.poesessid || "");
   const [accountFeedback, setAccountFeedback] = useState<string | null>(null);
+  const [gameStatus, setGameStatus] = useState<GameStatus>(() => gameWatcherService.getStatus());
+
+  useEffect(() => {
+    return gameWatcherService.subscribe((st) => {
+      setGameStatus(st);
+    });
+  }, []);
 
   const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value);
@@ -85,8 +93,40 @@ export function SettingsView() {
     setTimeout(() => setAccountFeedback(null), 3000);
   };
 
+  const handleOpenGggLogin = () => {
+    gameWatcherService.openInAppLogin();
+  };
+
   return (
     <div className="module-view settings-view">
+      {/* Game Client Status */}
+      <div className="settings-section">
+        <h3 className="section-title">Detecção do Jogo (Path of Exile)</h3>
+        <div className="setting-row">
+          <div className="setting-info">
+            <span className="setting-name">Status do Jogo</span>
+            <span className="setting-subtext">
+              {gameStatus.isLogDetected
+                ? "Cliente do PoE localizado no disco"
+                : "Arquivo de logs Client.txt não encontrado"}
+            </span>
+          </div>
+          <span className={`status-pill ${gameStatus.isLogDetected ? "online" : "offline"}`}>
+            {gameStatus.isLogDetected ? "Conectado" : "Não detectado"}
+          </span>
+        </div>
+
+        {gameStatus.currentZone && (
+          <div className="setting-row">
+            <div className="setting-info">
+              <span className="setting-name">Área / Zona Atual</span>
+              <span className="setting-subtext">Localização do personagem no jogo</span>
+            </div>
+            <span className="zone-badge">📍 {gameStatus.currentZone}</span>
+          </div>
+        )}
+      </div>
+
       {/* Account Settings */}
       <div className="settings-section">
         <h3 className="section-title">Conta Path of Exile</h3>
@@ -129,6 +169,23 @@ export function SettingsView() {
           </div>
         </div>
 
+        {/* In-App Login with GGG */}
+        <div className="setting-row">
+          <div className="setting-info">
+            <span className="setting-name">Login Oficial da GGG</span>
+            <span className="setting-subtext">
+              Abrir tela de login no site oficial da GGG
+            </span>
+          </div>
+          <button
+            type="button"
+            className="btn-submit ggg-login-btn"
+            onClick={handleOpenGggLogin}
+          >
+            🛡️ Abrir Login GGG
+          </button>
+        </div>
+
         {/* POESESSID Configuration */}
         <div className="setting-row">
           <div className="setting-info">
@@ -156,7 +213,7 @@ export function SettingsView() {
         </div>
 
         <p className="settings-tip">
-          💡 <strong>Como pegar o POESESSID:</strong> Acesse pathofexile.com logado &gt; aperte F12 &gt; Application (ou Armazenamento) &gt; Cookies &gt; copie o valor do cookie <code>POESESSID</code>.
+          💡 <strong>Como pegar o POESESSID:</strong> Acesse pathofexile.com logado &gt; aperte F12 &gt; Application &gt; Cookies &gt; copie o valor do cookie <code>POESESSID</code>.
         </p>
 
         {accountFeedback && (

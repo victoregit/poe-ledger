@@ -1,7 +1,24 @@
 use reqwest::header::{HeaderMap, HeaderValue, COOKIE, USER_AGENT};
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::path::Path;
 use urlencoding::encode;
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
 const BROWSER_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+const KNOWN_LOG_PATHS: &[&str] = &[
+    r"D:\SteamLibrary\steamapps\common\Path of Exile\logs\Client.txt",
+    r"C:\Program Files (x86)\Steam\steamapps\common\Path of Exile\logs\Client.txt",
+    r"C:\Program Files (x86)\Grinding Gear Games\Path of Exile\logs\Client.txt",
+    r"C:\Program Files\Grinding Gear Games\Path of Exile\logs\Client.txt",
+    r"E:\SteamLibrary\steamapps\common\Path of Exile\logs\Client.txt",
+    r"F:\SteamLibrary\steamapps\common\Path of Exile\logs\Client.txt",
+    r"D:\Games\Path of Exile\logs\Client.txt",
+    r"C:\Games\Path of Exile\logs\Client.txt",
+    r"C:\Program Files (x86)\Steam\steamapps\common\Path of Exile 2\logs\Client.txt",
+    r"C:\Program Files (x86)\Grinding Gear Games\Path of Exile 2\logs\Client.txt",
+];
 
 fn get_client_with_cookie(poesessid: Option<&str>) -> Result<reqwest::Client, String> {
     let mut headers = HeaderMap::new();
@@ -106,7 +123,7 @@ async fn fetch_stash_tabs(
 
     if status == reqwest::StatusCode::FORBIDDEN {
         return Err(
-            "Acesso negado às abas do Baú (Stash). Para ler suas abas privadas de baú, insira seu POESESSID em Configurações (⚙️)."
+            "Acesso negado às abas do Baú (Stash). Para ler suas abas privadas de baú, use o login automático da GGG ou insira seu POESESSID em Configurações (⚙️)."
                 .to_string(),
         );
     }
@@ -166,6 +183,59 @@ async fn fetch_poe_ninja_overview(league: String, overview_type: String) -> Resu
 }
 
 #[tauri::command]
+fn detect_poe_client_log() -> Option<String> {
+    for path_str in KNOWN_LOG_PATHS {
+        if Path::new(path_str).exists() {
+            return Some(path_str.to_string());
+        }
+    }
+    None
+}
+
+#[tauri::command]
+fn get_last_game_zone(log_path: Option<String>) -> Option<String> {
+    let target_path = log_path.or_else(detect_poe_client_log)?;
+    let file = File::open(&target_path).ok()?;
+    let reader = BufReader::new(file);
+
+    let mut last_zone = None;
+    for line_res in reader.lines() {
+        if let Ok(line) = line_res {
+            if let Some(pos) = line.find(" : You have entered ") {
+                let zone = &line[pos + " : You have entered ".len()..];
+                let clean_zone = zone.trim_end_matches('.');
+                last_zone = Some(clean_zone.to_string());
+            }
+        }
+    }
+
+    last_zone
+}
+
+#[tauri::command]
+fn open_ggg_login_window(app: AppHandle) -> Result<String, String> {
+    if let Some(existing) = app.get_webview_window("ggg_login") {
+        let _ = existing.set_focus();
+        return Ok("Login window focused".to_string());
+    }
+
+    let login_url = "https://www.pathofexile.com/login"
+        .parse()
+        .map_err(|e: url::ParseError| e.to_string())?;
+
+    let window = WebviewWindowBuilder::new(&app, "ggg_login", WebviewUrl::External(login_url))
+        .title("Login Oficial Path of Exile")
+        .inner_size(680.0, 740.0)
+        .resizable(true)
+        .always_on_top(true)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let _ = window.show();
+    Ok("Login window opened".to_string())
+}
+
+#[tauri::command]
 fn get_app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
@@ -182,7 +252,10 @@ pub fn run() {
             fetch_character_items,
             fetch_stash_tabs,
             fetch_stash_items,
-            fetch_poe_ninja_overview
+            fetch_poe_ninja_overview,
+            detect_poe_client_log,
+            get_last_game_zone,
+            open_ggg_login_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
