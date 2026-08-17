@@ -1,5 +1,5 @@
+import { invoke } from "@tauri-apps/api/core";
 import { economyCache } from "./economyCache";
-import { httpFetch } from "../http/httpClient";
 
 export interface ItemPriceQuote {
   name: string;
@@ -14,8 +14,6 @@ export interface PriceProvider {
   name: string;
   fetchPrices(league: string): Promise<Map<string, ItemPriceQuote>>;
 }
-
-const POE_NINJA_BASE = "https://poe.ninja/api/data";
 
 // Standard fallback base rates in case API is unreachable or rate limited
 const FALLBACK_PRICES: Record<string, { chaos: number; div: number }> = {
@@ -59,34 +57,32 @@ export class PoeNinjaPriceProvider implements PriceProvider {
     }
 
     try {
-      // 1. Fetch currency overview from poe.ninja using native HTTP client
-      const currUrl = `${POE_NINJA_BASE}/currencyoverview?league=${encodeURIComponent(league)}&type=Currency`;
-      const currRes = await httpFetch(currUrl, {
-        headers: {
-          "User-Agent": "PoeLedger/0.1.0",
-        },
+      // Fetch currency overview via Native Rust command
+      const rawJson = await invoke<string>("fetch_poe_ninja_overview", {
+        league: league,
+        overviewType: "Currency",
       });
-      
-      if (currRes.ok) {
-        const currData = await currRes.json();
-        if (currData.lines && Array.isArray(currData.lines)) {
-          const divineEntry = currData.lines.find((l: { currencyTypeName?: string }) => l.currencyTypeName === "Divine Orb");
-          if (divineEntry && divineEntry.chaosEquivalent) {
-            divineInChaos = divineEntry.chaosEquivalent;
-          }
 
-          for (const line of currData.lines) {
-            const currencyName = line.currencyTypeName;
-            const chaosValue = line.chaosEquivalent || 0;
-            if (currencyName && chaosValue > 0) {
-              priceMap.set(currencyName.toLowerCase(), {
-                name: currencyName,
-                category: "currency",
-                priceInChaos: chaosValue,
-                priceInDivine: chaosValue / divineInChaos,
-                confidence: "high",
-              });
-            }
+      const currData = JSON.parse(rawJson);
+      if (currData.lines && Array.isArray(currData.lines)) {
+        const divineEntry = currData.lines.find(
+          (l: { currencyTypeName?: string }) => l.currencyTypeName === "Divine Orb"
+        );
+        if (divineEntry && divineEntry.chaosEquivalent) {
+          divineInChaos = divineEntry.chaosEquivalent;
+        }
+
+        for (const line of currData.lines) {
+          const currencyName = line.currencyTypeName;
+          const chaosValue = line.chaosEquivalent || 0;
+          if (currencyName && chaosValue > 0) {
+            priceMap.set(currencyName.toLowerCase(), {
+              name: currencyName,
+              category: "currency",
+              priceInChaos: chaosValue,
+              priceInDivine: chaosValue / divineInChaos,
+              confidence: "high",
+            });
           }
         }
       }
@@ -94,7 +90,6 @@ export class PoeNinjaPriceProvider implements PriceProvider {
       console.log("Using cached/fallback price database for economy service");
     }
 
-    // Convert map to plain object to store in cache
     const plainObj: Record<string, ItemPriceQuote> = {};
     priceMap.forEach((val, key) => {
       plainObj[key] = val;

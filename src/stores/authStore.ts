@@ -23,13 +23,7 @@ export function useAuth() {
     setIsLoading(true);
     setError(null);
     try {
-      let chars: GggCharacter[] = [];
-      if (session.isAuthenticated && !session.token?.access_token.startsWith("mock_")) {
-        chars = await poeApiService.getCharacters();
-      } else {
-        chars = await poeApiService.getPublicCharacters(acc, "pc");
-      }
-
+      const chars = await poeApiService.getPublicCharacters(acc, "pc");
       setCharacters(chars);
 
       if (chars.length > 0) {
@@ -47,7 +41,7 @@ export function useAuth() {
     } finally {
       setIsLoading(false);
     }
-  }, [accountName, session.isAuthenticated, session.token]);
+  }, [accountName]);
 
   const loadItems = useCallback(async (charName?: string) => {
     const char = charName || selectedCharacter;
