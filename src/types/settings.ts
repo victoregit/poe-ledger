@@ -8,11 +8,9 @@ export interface OverlaySettings {
 export interface WealthSettings {
   defaultCurrency: "divine" | "chaos";
   minItemValue: number; // e.g. 0.1 divine
-  maxDisplayedItems: number; // e.g. 30
+  maxDisplayedItems: number; // e.g. 40
   autoRefreshEnabled: boolean;
   autoRefreshIntervalMinutes: number; // e.g. 10
-  includeInventory: boolean;
-  includeStash: boolean;
 }
 
 export interface HotkeySettings {
@@ -21,22 +19,11 @@ export interface HotkeySettings {
   toggleCompact: string; // e.g. "Control+Shift+M"
 }
 
-export interface StashTabSummary {
-  id?: string;
-  i: number;
-  n: string;
-  type: string;
-  color?: { r: number; g: number; b: number };
-  selected?: boolean;
-}
-
 export interface AccountSettings {
   accountName: string | null;
   selectedCharacter: string | null;
   selectedLeague: string | null;
-  poesessid: string | null;
   realm: "pc" | "sony" | "xbox";
-  activeStashIndices: number[];
 }
 
 export interface AppSettings {
@@ -60,8 +47,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
     maxDisplayedItems: 40,
     autoRefreshEnabled: false,
     autoRefreshIntervalMinutes: 10,
-    includeInventory: true,
-    includeStash: true,
   },
   hotkeys: {
     toggleOverlay: "Control+Shift+Space",
@@ -72,9 +57,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     accountName: null,
     selectedCharacter: null,
     selectedLeague: "Standard",
-    poesessid: null,
     realm: "pc",
-    activeStashIndices: [0, 1, 2, 3],
   },
   enabledModules: {
     wealth: true,

@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSettings } from "../../stores/settingsStore";
 import { useAuth } from "../../stores/authStore";
 import { CharacterSelector } from "../../components/core/CharacterSelector";
-import { MOCK_VALUED_ITEMS } from "./mockWealthData";
 import { ValuedItem } from "../../types/item";
 import { economyService } from "../../services/economy/economyService";
 
@@ -19,34 +18,28 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
   const {
     selectedCharacter,
     activeLeague,
-    combinedItems,
+    characterItems,
     loadItems,
-    loadStashes,
-    stashTabs,
-    stashError,
     isAuthenticated,
     isLoading: isAuthLoading,
-    isStashLoading,
   } = useAuth();
 
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>("all");
-  const [items, setItems] = useState<ValuedItem[]>(MOCK_VALUED_ITEMS);
+  const [items, setItems] = useState<ValuedItem[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const isDivine = settings.wealth.defaultCurrency === "divine";
 
-  // Re-valuate items whenever combined items or active league changes
+  // Re-valuate items whenever character items or active league changes
   const valuateCurrentItems = useCallback(async () => {
     setIsRefreshing(true);
     setErrorMessage(null);
 
     try {
-      if (combinedItems && combinedItems.length > 0) {
-        const result = await economyService.valuateItems(combinedItems, activeLeague);
+      if (characterItems && characterItems.length > 0) {
+        const result = await economyService.valuateItems(characterItems, activeLeague);
         setItems(result.valuedItems);
-      } else if (!isAuthenticated) {
-        setItems(MOCK_VALUED_ITEMS);
       } else {
         setItems([]);
       }
@@ -55,7 +48,7 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
     } finally {
       setIsRefreshing(false);
     }
-  }, [combinedItems, activeLeague, isAuthenticated]);
+  }, [characterItems, activeLeague, isAuthenticated]);
 
   useEffect(() => {
     valuateCurrentItems();
@@ -65,7 +58,6 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
     if (selectedCharacter) {
       await loadItems(selectedCharacter);
     }
-    await loadStashes(activeLeague);
     await valuateCurrentItems();
   };
 
@@ -118,16 +110,6 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
       {/* Character Selector & League Bar */}
       <CharacterSelector />
 
-      {/* Stash Notice Banner if POESESSID is missing */}
-      {isAuthenticated && stashError && (
-        <div className="stash-notice-banner">
-          <span className="stash-icon">📦</span>
-          <span className="stash-text">
-            Para somar suas <strong>Abas do Baú (Stashes)</strong>, insira seu <strong>POESESSID</strong> nas Configurações (⚙️).
-          </span>
-        </div>
-      )}
-
       {/* Error Alert Banner */}
       {errorMessage && (
         <div className="error-alert-banner">
@@ -142,14 +124,7 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
       {/* Header Summary */}
       <div className="wealth-header-summary">
         <div className="summary-left">
-          <div className="summary-label-row">
-            <span className="summary-label">Patrimônio Líquido ({activeLeague})</span>
-            {stashTabs.length > 0 && (
-              <span className="stash-active-badge" title={`${stashTabs.length} abas de baú carregadas`}>
-                📦 {stashTabs.length} abas
-              </span>
-            )}
-          </div>
+          <span className="summary-label">Inventário do Personagem ({activeLeague})</span>
           <div className="total-display">
             <span className="total-value">{formatPrice(totalNetWorth)}</span>
             <span className={`currency-badge ${isDivine ? "divine" : "chaos"}`}>
@@ -159,11 +134,11 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
         </div>
         <div className="summary-actions">
           <button
-            className={`icon-btn refresh-btn ${isRefreshing || isAuthLoading || isStashLoading ? "spin" : ""}`}
+            className={`icon-btn refresh-btn ${isRefreshing || isAuthLoading ? "spin" : ""}`}
             onClick={handleRefresh}
-            title="Atualizar dados de preços, baú e inventário"
+            title="Atualizar dados de preços e inventário"
             aria-label="Atualizar dados"
-            disabled={isRefreshing || isAuthLoading || isStashLoading}
+            disabled={isRefreshing || isAuthLoading}
           >
             ↻
           </button>

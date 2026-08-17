@@ -1,81 +1,136 @@
 # Poe Ledger ⚖️
 
-Poe Ledger is a high-performance, modular desktop overlay for **Path of Exile 1**, built from scratch with **Tauri 2**, **Rust**, **React 19**, **TypeScript**, and **Vite**.
+Poe Ledger é um overlay leve para Path of Exile, pensado para ficar aberto enquanto você joga, sem ocupar muito espaço na tela.
+
+A ideia principal é ter uma janela pequena e útil, com modo compacto, e a opção de expandir quando quiser ver mais detalhes.
 
 ---
 
-## 🧭 Architecture & Design Principles
+## Objetivo
 
-```
-React (Vite + TS)
-  ↕  (Tauri IPC Bridge / Events)
-Tauri 2 (Rust)
-  ├── Window Management (Frameless, Transparent, Always-on-top, Draggable)
-  ├── Global Hotkeys (Control+Shift+Space, Control+Shift+R, Control+Shift+M)
-  ├── Path of Exile Official API (OAuth 2.0 PKCE, Characters, Inventory)
-  ├── Economy Service & Price Provider (Dual-layer Cache, Rate Limiting)
-  └── Local Storage & Persistent Settings
-```
+Criar uma ferramenta de apoio ao jogador com foco em:
 
-- **Official GGG APIs Only**: Adheres 100% to Grinding Gear Games developer policies (OAuth 2.0 PKCE, public endpoints, caching, rate limiting).
-- **Zero Game Tampering**: No memory reading, no DLL injection, no unauthorized hooks.
-- **Modular Core**: Engineered to support future modules seamlessly:
-  - 💰 **Wealth** (V1 - Active)
-  - 🔍 **Price Check** (V2 - Roadmap)
-  - 🤝 **Trade** (V3 - Roadmap)
-  - 🎒 **Inventory & Stash** (V4 - Roadmap)
-  - 🗺️ **Maps & Economy** (V5 - Roadmap)
-  - ⚙️ **Settings** (V1 - Active)
-- **Overlay & Mini Player**:
-  - Borderless draggable window (`data-tauri-drag-region`).
-  - Native always-on-top toggle (📌).
-  - Compact Mini Player mode (`⤡` / `⤢`) with live net worth summary.
-  - Transparent frosted glass with configurable opacity and scaling.
+- patrimônio do personagem
+- resumo econômico rápido
+- overlay discreto e sempre visível
+- janela compacta para ficar em segundo plano
+- expansão para módulos futuros sem quebrar a estrutura
 
 ---
 
-## 🚀 Getting Started
+## Filosofia do projeto
 
-### Prerequisites
+- Minimalista: poucas coisas na tela, sem poluição visual
+- Compactável: pode ficar em modo mini ou normal
+- Útil enquanto joga: fácil de ler em segundos
+- Modular: cada funcionalidade pode entrar como módulo separado
+- Legal e leve: sem over-engineering, sem tanta complexidade ao iniciar
 
-- [Node.js](https://nodejs.org/) (v20+ LTS)
-- [Rust](https://www.rust-lang.org/) & Cargo (with `stable-x86_64-pc-windows-gnu` or `msvc`)
-- C/C++ compiler toolchain (WinLibs GCC / MinGW-w64 or MSVC)
+---
 
-### Development
+## Visão da interface
+
+### Modo compacto
+
+- mostra só o resumo principal
+- valor total / patrimônio
+- ícone de expansão para abrir mais detalhes
+- transparente ou semi-transparente
+- sempre no topo opcional
+
+### Modo normal
+
+- navegação por módulos
+- painel de wealth
+- configuração e ajustes
+- hotkeys globais
+
+Esse modelo deixa o app confortável para usar em jogo, sem precisar fechar a janela.
+
+---
+
+## Plano de criação
+
+### Fase 1 — MVP
+
+- Tauri + React + TypeScript
+- janela overlay leve
+- modo compacto / expandido
+- sempre no topo
+- hotkeys globais
+- módulo de Wealth funcional
+- ajustes básicos de visual e opacidade
+
+### Fase 2 — Economia
+
+- preços de itens
+- cache local
+- atualização manual e automática
+- informações mais úteis para mercado
+
+### Fase 3 — Trade e utilidade
+
+- preço rápido
+- histórico e avaliação
+- melhor suporte ao comércio
+
+### Fase 4 — Expansão
+
+- inventory/stash
+- mapas e economia
+- módulos extras sem bagunçar a base
+
+---
+
+## Stack atual
+
+- React 19
+- TypeScript
+- Vite
+- Tauri 2
+- Rust
+
+---
+
+## Requisitos
+
+- Node.js v20+
+- Rust + Cargo
+- compilador C/C++ do ambiente Windows
+
+---
+
+## Execução local
 
 ```bash
-# Navigate to project directory
-cd poe-ledger
-
-# Install dependencies
 npm install
-
-# Start local Tauri desktop overlay
 npm run tauri dev
 ```
 
-### Production Build
+Para build final:
 
 ```bash
-# Build standalone Windows desktop application (.exe and .msi)
 npm run tauri build
 ```
 
-The compiled release executable will be available at `src-tauri/target/release/poe-ledger.exe`.
+---
+
+## Atalhos planejados
+
+- Ctrl + Shift + Space: mostrar/ocultar overlay
+- Ctrl + Shift + R: atualizar wealth/preços
+- Ctrl + Shift + M: alternar modo compacto
 
 ---
 
-## ⌨️ Global Shortcuts
+## Direção final
 
-| Shortcut | Action |
-|---|---|
-| `Ctrl + Shift + Space` | Show / Hide Poe Ledger Overlay |
-| `Ctrl + Shift + R` | Refresh Wealth & Prices |
-| `Ctrl + Shift + M` | Toggle Compact Mini Player Mode |
+O projeto deve ser um overlay pequeno, útil e discreto, que pode permanecer aberto enquanto você joga, mas com a flexibilidade de aumentar quando quiser ver mais detalhes.
+
+Em resumo: menos poluição visual, mais funcionalidade útil, e uma experiência que não atrapalha a gameplay.
 
 ---
 
-## 📄 License
+## Licença
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT. Consulte o arquivo [LICENSE](LICENSE).

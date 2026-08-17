@@ -77,6 +77,17 @@ class PoeAuthService {
     return this.currentSession;
   }
 
+  public getAccessToken(): string | null {
+    return this.currentSession.token?.access_token || null;
+  }
+
+  public hasValidAccessToken(): boolean {
+    const token = this.currentSession.token;
+    if (!token) return false;
+    if (!token.expires_at) return Boolean(token.access_token);
+    return token.expires_at > Date.now();
+  }
+
   public saveSession(session: AuthSession): void {
     this.currentSession = session;
     try {
@@ -84,6 +95,29 @@ class PoeAuthService {
     } catch (e) {
       console.warn("Failed to persist auth session", e);
     }
+  }
+
+  public async startOfficialLogin(
+    clientId: string,
+    scopes: string = "account:profile account:characters account:stashes"
+  ): Promise<string> {
+    const params = new URLSearchParams({
+      client_id: clientId,
+      response_type: "code",
+      scope: scopes,
+    });
+
+    const url = `${POE_AUTH_URL}?${params.toString()}`;
+    return url;
+  }
+
+  public handleAuthCallback(urlOverride?: string): { code: string | null; state: string | null } {
+    const target = urlOverride ?? window.location.href;
+    const params = new URL(target).searchParams;
+    return {
+      code: params.get("code"),
+      state: params.get("state"),
+    };
   }
 
   public logout(): void {

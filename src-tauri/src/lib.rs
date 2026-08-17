@@ -1,9 +1,8 @@
-use reqwest::header::{HeaderMap, HeaderValue, COOKIE, USER_AGENT};
+use reqwest::header::{HeaderMap, HeaderValue, USER_AGENT};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use urlencoding::encode;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
 const BROWSER_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -20,19 +19,9 @@ const KNOWN_LOG_PATHS: &[&str] = &[
     r"C:\Program Files (x86)\Grinding Gear Games\Path of Exile 2\logs\Client.txt",
 ];
 
-fn get_client_with_cookie(poesessid: Option<&str>) -> Result<reqwest::Client, String> {
+fn get_client() -> Result<reqwest::Client, String> {
     let mut headers = HeaderMap::new();
     headers.insert(USER_AGENT, HeaderValue::from_static(BROWSER_UA));
-
-    if let Some(sess) = poesessid {
-        let clean_sess = sess.trim();
-        if !clean_sess.is_empty() {
-            let cookie_val = format!("POESESSID={}", clean_sess);
-            if let Ok(val) = HeaderValue::from_str(&cookie_val) {
-                headers.insert(COOKIE, val);
-            }
-        }
-    }
 
     reqwest::Client::builder()
         .default_headers(headers)
@@ -42,7 +31,7 @@ fn get_client_with_cookie(poesessid: Option<&str>) -> Result<reqwest::Client, St
 
 #[tauri::command]
 async fn fetch_characters(account_name: String, realm: Option<String>) -> Result<String, String> {
-    let client = get_client_with_cookie(None)?;
+    let client = get_client()?;
     let r = realm.unwrap_or_else(|| "pc".to_string());
     let encoded_account = encode(account_name.trim());
     let url = format!(
@@ -64,6 +53,13 @@ async fn fetch_characters(account_name: String, realm: Option<String>) -> Result
         return Err(format!("Conta \"{}\" não encontrada no Path of Exile.", account_name));
     }
 
+    if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+        return Err(
+            "A GGG limitou temporariamente as consultas. Aguarde um minuto antes de tentar conectar novamente."
+                .to_string(),
+        );
+    }
+
     if !status.is_success() {
         return Err(format!("Erro retornado pela GGG (Status: {}).", status));
     }
@@ -78,7 +74,7 @@ async fn fetch_character_items(
     character_name: String,
     realm: Option<String>,
 ) -> Result<String, String> {
-    let client = get_client_with_cookie(None)?;
+    let client = get_client()?;
     let r = realm.unwrap_or_else(|| "pc".to_string());
     let encoded_account = encode(account_name.trim());
     let encoded_char = encode(character_name.trim());
@@ -106,10 +102,10 @@ async fn fetch_character_items(
 async fn fetch_stash_tabs(
     account_name: String,
     league: String,
-    poesessid: Option<String>,
+    _poesessid: Option<String>,
     realm: Option<String>,
 ) -> Result<String, String> {
-    let client = get_client_with_cookie(poesessid.as_deref())?;
+    let client = get_client()?;
     let r = realm.unwrap_or_else(|| "pc".to_string());
     let encoded_account = encode(account_name.trim());
     let encoded_league = encode(league.trim());
@@ -123,7 +119,7 @@ async fn fetch_stash_tabs(
 
     if status == reqwest::StatusCode::FORBIDDEN {
         return Err(
-            "Acesso negado às abas do Baú (Stash). Para ler suas abas privadas de baú, use o login automático da GGG ou insira seu POESESSID em Configurações (⚙️)."
+            "Acesso privado ao stash exige autenticação oficial da GGG via fluxo automatizado e autorizado. Não usamos extração manual de cookie."
                 .to_string(),
         );
     }
@@ -141,10 +137,10 @@ async fn fetch_stash_items(
     account_name: String,
     league: String,
     tab_index: u32,
-    poesessid: Option<String>,
+    _poesessid: Option<String>,
     realm: Option<String>,
 ) -> Result<String, String> {
-    let client = get_client_with_cookie(poesessid.as_deref())?;
+    let client = get_client()?;
     let r = realm.unwrap_or_else(|| "pc".to_string());
     let encoded_account = encode(account_name.trim());
     let encoded_league = encode(league.trim());
@@ -157,7 +153,10 @@ async fn fetch_stash_items(
     let status = res.status();
 
     if status == reqwest::StatusCode::FORBIDDEN {
-        return Err("Acesso negado à aba do baú. Verifique seu POESESSID.".to_string());
+        return Err(
+            "Acesso privado ao stash exige autenticação oficial da GGG via fluxo automatizado e autorizado. Não usamos extração manual de cookie."
+                .to_string(),
+        );
     }
 
     if !status.is_success() {
@@ -170,7 +169,7 @@ async fn fetch_stash_items(
 
 #[tauri::command]
 async fn fetch_poe_ninja_overview(league: String, overview_type: String) -> Result<String, String> {
-    let client = get_client_with_cookie(None)?;
+    let client = get_client()?;
     let encoded_league = encode(&league);
     let url = format!(
         "https://poe.ninja/api/data/currencyoverview?league={}&type={}",
@@ -180,6 +179,68 @@ async fn fetch_poe_ninja_overview(league: String, overview_type: String) -> Resu
     let res = client.get(&url).send().await.map_err(|e| e.to_string())?;
     let body = res.text().await.map_err(|e| e.to_string())?;
     Ok(body)
+}
+
+#[tauri::command]
+async fn fetch_poe_ninja_economy(league: String, dataset: String) -> Result<String, String> {
+    let endpoint = match dataset.as_str() {
+        "currency" => "stash/current/currency/overview?league={league}&type=Currency",
+        "fragment" => "exchange/current/overview?league={league}&type=Fragment",
+        "allflame_ember" => "exchange/current/overview?league={league}&type=AllflameEmber",
+        "omen" => "exchange/current/overview?league={league}&type=Omen",
+        "tattoo" => "exchange/current/overview?league={league}&type=Tattoo",
+        "runegraft" => "exchange/current/overview?league={league}&type=Runegraft",
+        "scarab" => "exchange/current/overview?league={league}&type=Scarab",
+        "delirium_orb" => "exchange/current/overview?league={league}&type=DeliriumOrb",
+        "fossil" => "exchange/current/overview?league={league}&type=Fossil",
+        "resonator" => "exchange/current/overview?league={league}&type=Resonator",
+        "essence" => "exchange/current/overview?league={league}&type=Essence",
+        "divination_card" => "exchange/current/overview?league={league}&type=DivinationCard",
+        "artifact" => "exchange/current/overview?league={league}&type=Artifact",
+        "unique_armour" => "stash/current/item/overview?type=UniqueArmour",
+        "unique_weapon" => "stash/current/item/overview?type=UniqueWeapon",
+        "unique_accessory" => "stash/current/item/overview?type=UniqueAccessory",
+        "unique_flask" => "stash/current/item/overview?type=UniqueFlask",
+        "unique_jewel" => "stash/current/item/overview?type=UniqueJewel",
+        _ => return Err("Tipo de economia não suportado.".to_string()),
+    };
+
+    let client = get_client()?;
+    let encoded_league = encode(league.trim());
+    let url = if endpoint.contains("{league}") {
+        format!(
+            "https://poe.ninja/poe1/api/economy/{}",
+            endpoint.replace("{league}", encoded_league.as_ref())
+        )
+    } else {
+        format!(
+            "https://poe.ninja/poe1/api/economy/{}&league={}",
+            endpoint, encoded_league
+        )
+    };
+    let res = client.get(&url).send().await.map_err(|e| e.to_string())?;
+    let status = res.status();
+
+    if !status.is_success() {
+        return Err(format!("poe.ninja retornou o status {}.", status));
+    }
+
+    res.text().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn fetch_poe_ninja_economy_leagues() -> Result<String, String> {
+    let client = get_client()?;
+    let res = client
+        .get("https://poe.ninja/poe1/api/economy/leagues")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = res.status();
+    if !status.is_success() {
+        return Err(format!("poe.ninja retornou o status {} ao buscar ligas.", status));
+    }
+    res.text().await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -213,26 +274,32 @@ fn get_last_game_zone(log_path: Option<String>) -> Option<String> {
 }
 
 #[tauri::command]
-fn open_ggg_login_window(app: AppHandle) -> Result<String, String> {
-    if let Some(existing) = app.get_webview_window("ggg_login") {
-        let _ = existing.set_focus();
-        return Ok("Login window focused".to_string());
+fn open_in_browser(url: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(&["/C", "start", &url])
+            .spawn()
+            .map_err(|e| e.to_string())?;
     }
 
-    let login_url = "https://www.pathofexile.com/login"
-        .parse()
-        .map_err(|e: url::ParseError| e.to_string())?;
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
 
-    let window = WebviewWindowBuilder::new(&app, "ggg_login", WebviewUrl::External(login_url))
-        .title("Login Oficial Path of Exile")
-        .inner_size(680.0, 740.0)
-        .resizable(true)
-        .always_on_top(true)
-        .build()
-        .map_err(|e| e.to_string())?;
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
 
-    let _ = window.show();
-    Ok("Login window opened".to_string())
+    Ok(())
 }
 
 #[tauri::command]
@@ -253,9 +320,11 @@ pub fn run() {
             fetch_stash_tabs,
             fetch_stash_items,
             fetch_poe_ninja_overview,
+            fetch_poe_ninja_economy,
+            fetch_poe_ninja_economy_leagues,
             detect_poe_client_log,
             get_last_game_zone,
-            open_ggg_login_window
+            open_in_browser
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

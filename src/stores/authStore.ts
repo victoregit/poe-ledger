@@ -1,11 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { createContext, createElement, useContext, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
 import { poeAuthService, AuthSession } from "../services/poe/poeAuthService";
 import { poeApiService, GggCharacter } from "../services/poe/poeApiService";
 import { settingsManager } from "./settingsStore";
 import { PoeItem } from "../types/item";
-import { StashTabSummary } from "../types/settings";
+import { gameWatcherService } from "../services/game/gameWatcherService";
 
-export function useAuth() {
+type AuthContextValue = ReturnType<typeof useAuthState>;
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+function useAuthState() {
   const [session, setSession] = useState<AuthSession>(() => poeAuthService.getSession());
   const [accountName, setAccountName] = useState<string | null>(
     () => settingsManager.getSettings().account.accountName || session.accountName
@@ -18,12 +22,8 @@ export function useAuth() {
     () => settingsManager.getSettings().account.selectedLeague || "Standard"
   );
   const [characterItems, setCharacterItems] = useState<PoeItem[]>([]);
-  const [stashTabs, setStashTabs] = useState<StashTabSummary[]>([]);
-  const [stashItems, setStashItems] = useState<PoeItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isStashLoading, setIsStashLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [stashError, setStashError] = useState<string | null>(null);
 
   // Detect current challenge league name dynamically from characters or fallback to "Settlers"
   const currentChallengeLeague = useMemo(() => {
@@ -33,7 +33,7 @@ export function useAuth() {
     return nonStandard?.league || "Settlers";
   }, [characters]);
 
-  // Main leagues requested by user: Liga Atual, Standard, Hardcore
+  // Main leagues requested: Liga Atual, Standard, Hardcore
   const availableLeagues = useMemo(() => {
     const list: string[] = [];
     if (currentChallengeLeague && currentChallengeLeague !== "Standard" && currentChallengeLeague !== "Hardcore") {
@@ -116,39 +116,6 @@ export function useAuth() {
     }
   }, [accountName, selectedCharacter]);
 
-  const loadStashes = useCallback(async (targetLeague?: string) => {
-    const acc = accountName;
-    const leagueToUse = targetLeague || activeLeague;
-    const poesessid = settingsManager.getSettings().account.poesessid;
-    if (!acc) return;
-
-    setIsStashLoading(true);
-    setStashError(null);
-
-    try {
-      const tabData = await poeApiService.getStashTabs(acc, leagueToUse, poesessid, "pc");
-      setStashTabs(tabData.tabs);
-
-      let allStashItems = [...tabData.items];
-      
-      const maxTabsToLoad = Math.min(tabData.tabs.length, 6);
-      for (let i = 1; i < maxTabsToLoad; i++) {
-        try {
-          const items = await poeApiService.getStashTabItems(acc, leagueToUse, i, poesessid, "pc");
-          allStashItems = allStashItems.concat(items);
-        } catch {
-          // Continue
-        }
-      }
-
-      setStashItems(allStashItems);
-    } catch (e) {
-      setStashError(e instanceof Error ? e.message : "Não foi possível carregar as abas do baú.");
-    } finally {
-      setIsStashLoading(false);
-    }
-  }, [accountName, activeLeague]);
-
   useEffect(() => {
     if (accountName) {
       loadCharacters(accountName);
@@ -163,11 +130,29 @@ export function useAuth() {
     }
   }, [selectedCharacter, accountName, loadItems]);
 
+  const lastAutoRefreshRef = useRef(0);
+
   useEffect(() => {
-    if (accountName && activeLeague) {
-      loadStashes(activeLeague);
-    }
-  }, [accountName, activeLeague, loadStashes]);
+    const unsubscribe = gameWatcherService.subscribe((status) => {
+      if (!status.isLogDetected || !accountName) {
+        return;
+      }
+
+      const now = Date.now();
+      if (now - lastAutoRefreshRef.current < 15000) {
+        return;
+      }
+
+      lastAutoRefreshRef.current = now;
+
+      void Promise.all([
+        loadCharacters(accountName),
+        selectedCharacter ? loadItems(selectedCharacter) : Promise.resolve(),
+      ]);
+    });
+
+    return unsubscribe;
+  }, [accountName, selectedCharacter, loadCharacters, loadItems]);
 
   const connectAccount = async (name: string): Promise<boolean> => {
     const cleanName = name.trim();
@@ -176,7 +161,16 @@ export function useAuth() {
     setIsLoading(true);
 
     try {
-      const chars = await poeApiService.getPublicCharacters(cleanName, "pc");
+      // Add 30 second timeout
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Conexão expirou. Verifique se a conta é pública e tente novamente.")), 30000)
+      );
+
+      const chars = await Promise.race([
+        poeApiService.getPublicCharacters(cleanName, "pc"),
+        timeoutPromise,
+      ]);
+
       setAccountName(cleanName);
       setCharacters(chars);
 
@@ -193,6 +187,7 @@ export function useAuth() {
       }
       return true;
     } catch (e) {
+      console.error("Connect account error:", e);
       setError(e instanceof Error ? e.message : "Não foi possível conectar com a conta informada.");
       return false;
     } finally {
@@ -244,49 +239,41 @@ export function useAuth() {
     setCharacters([]);
     setSelectedCharacter(null);
     setCharacterItems([]);
-    setStashTabs([]);
-    setStashItems([]);
     settingsManager.updateSettings((prev) => ({
       ...prev,
-      account: { ...prev.account, accountName: null, selectedCharacter: null, poesessid: null },
+      account: { ...prev.account, accountName: null, selectedCharacter: null },
     }));
   };
-
-  // Combine character inventory + stash items based on settings
-  const combinedItems = useMemo(() => {
-    const settings = settingsManager.getSettings();
-    let result: PoeItem[] = [];
-    if (settings.wealth.includeInventory) {
-      result = result.concat(characterItems);
-    }
-    if (settings.wealth.includeStash) {
-      result = result.concat(stashItems);
-    }
-    return result;
-  }, [characterItems, stashItems]);
 
   return {
     accountName,
     activeLeague,
     availableLeagues,
-    isAuthenticated: Boolean(accountName),
+    isAuthenticated: Boolean(accountName) || poeAuthService.hasValidAccessToken(),
     characters,
     leagueCharacters,
     selectedCharacter,
     characterItems,
-    stashTabs,
-    stashItems,
-    combinedItems,
     connectAccount,
     selectCharacter,
     setLeague,
     loadCharacters,
     loadItems,
-    loadStashes,
     logout,
     isLoading,
-    isStashLoading,
     error,
-    stashError,
   };
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const auth = useAuthState();
+  return createElement(AuthContext.Provider, { value: auth }, children);
+}
+
+export function useAuth(): AuthContextValue {
+  const auth = useContext(AuthContext);
+  if (!auth) {
+    throw new Error("useAuth deve ser usado dentro de AuthProvider.");
+  }
+  return auth;
 }
