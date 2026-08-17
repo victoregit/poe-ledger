@@ -16,13 +16,43 @@ interface WealthViewProps {
 
 export function WealthView({ onNetWorthChange }: WealthViewProps) {
   const [settings] = useSettings();
-  const { selectedCharacter, isAuthenticated } = useAuth();
+  const { selectedCharacter, characterItems, loadItems, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>("all");
   const [items, setItems] = useState<ValuedItem[]>(MOCK_VALUED_ITEMS);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const isDivine = settings.wealth.defaultCurrency === "divine";
+
+  // Re-valuate items whenever character items change
+  const valuateCurrentItems = useCallback(async () => {
+    setIsRefreshing(true);
+    setErrorMessage(null);
+
+    try {
+      if (characterItems && characterItems.length > 0) {
+        const result = await economyService.valuateItems(characterItems, "Standard");
+        setItems(result.valuedItems);
+      } else if (!isAuthenticated) {
+        setItems(MOCK_VALUED_ITEMS);
+      }
+    } catch (e) {
+      setErrorMessage(e instanceof Error ? e.message : "Não foi possível avaliar os preços.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [characterItems, isAuthenticated]);
+
+  useEffect(() => {
+    valuateCurrentItems();
+  }, [valuateCurrentItems]);
+
+  const handleRefresh = async () => {
+    if (selectedCharacter) {
+      await loadItems(selectedCharacter);
+    }
+    await valuateCurrentItems();
+  };
 
   // Calculate total net worth
   const totalNetWorth = useMemo(() => {
@@ -44,30 +74,6 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
     const summaryText = `${formatPrice(totalNetWorth)} ${isDivine ? "div" : "c"}`;
     onNetWorthChange?.(summaryText);
   }, [totalNetWorth, isDivine, onNetWorthChange]);
-
-  const loadData = useCallback(async () => {
-    setIsRefreshing(true);
-    setErrorMessage(null);
-    try {
-      if (isAuthenticated && selectedCharacter) {
-        // Valuate items using the economy service
-        const itemsToValuate = items.map((vi) => vi.item);
-        const result = await economyService.valuateItems(itemsToValuate, "Standard");
-        setItems(result.valuedItems);
-      } else {
-        // Fallback to mock dataset
-        setItems(MOCK_VALUED_ITEMS);
-      }
-    } catch (e) {
-      setErrorMessage(e instanceof Error ? e.message : "Não foi possível atualizar os preços.");
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [isAuthenticated, selectedCharacter, items]);
-
-  const handleRefresh = () => {
-    loadData();
-  };
 
   // Filter and sort items
   const filteredItems = useMemo(() => {
@@ -121,11 +127,11 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
         </div>
         <div className="summary-actions">
           <button
-            className={`icon-btn refresh-btn ${isRefreshing ? "spin" : ""}`}
+            className={`icon-btn refresh-btn ${isRefreshing || isAuthLoading ? "spin" : ""}`}
             onClick={handleRefresh}
-            title="Atualizar dados de preços"
+            title="Atualizar dados de preços e inventário"
             aria-label="Atualizar dados"
-            disabled={isRefreshing}
+            disabled={isRefreshing || isAuthLoading}
           >
             ↻
           </button>
@@ -165,9 +171,11 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
         {filteredItems.length === 0 ? (
           <div className="empty-state">
             <span className="empty-icon">🔍</span>
-            <p className="empty-title">Nenhum item encontrado</p>
+            <p className="empty-title">Nenhum item avaliado</p>
             <p className="empty-desc">
-              Tente ajustar os filtros ou o valor mínimo nas configurações.
+              {isAuthenticated
+                ? "Nenhum item atingiu o valor mínimo configurado ou o inventário está vazio."
+                : "Conecte sua conta do PoE acima para visualizar seus itens reais."}
             </p>
           </div>
         ) : (
