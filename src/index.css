@@ -1,24 +1,25 @@
 :root {
-  --bg-primary: #0f1115;
-  --bg-secondary: #161922;
-  --bg-surface: #1e222d;
-  --bg-surface-hover: #262b38;
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-color-hover: rgba(255, 255, 255, 0.16);
-  --text-primary: #f0f2f5;
-  --text-secondary: #9aa2b1;
-  --text-muted: #626a7a;
-  --accent-gold: #c99e58;
-  --accent-gold-hover: #dbb36d;
+  --bg-primary: #0e1117;
+  --bg-secondary: #141822;
+  --bg-surface: #1a202c;
+  --bg-surface-hover: #232b3b;
+  --bg-overlay-alpha: rgba(14, 17, 23, 0.94);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --border-color-hover: rgba(255, 255, 255, 0.2);
+  --text-primary: #f0f3f8;
+  --text-secondary: #9da7b7;
+  --text-muted: #647083;
+  --accent-gold: #d4af37;
+  --accent-gold-hover: #e5be48;
   --accent-divine: #ffd700;
   --accent-chaos: #c49757;
-  --success: #38bdf8;
-  --danger: #ef4444;
+  --danger: #f43f5e;
+  --danger-hover: #e11d48;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
   --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --transition-fast: 150ms ease;
+  --transition-fast: 120ms ease;
 }
 
 * {
@@ -28,80 +29,124 @@
   user-select: none;
 }
 
-body {
-  font-family: var(--font-family);
-  background-color: var(--bg-primary);
+html, body {
+  height: 100%;
+  width: 100%;
+  background-color: transparent !important;
   color: var(--text-primary);
+  font-family: var(--font-family);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.4;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
 #root {
-  height: 100vh;
-  width: 100vw;
+  height: 100%;
+  width: 100%;
   display: flex;
   flex-direction: column;
 }
 
-.app-container {
+.overlay-wrapper {
   display: flex;
   flex-direction: column;
   height: 100%;
   width: 100%;
-  background: var(--bg-primary);
+  background: var(--bg-overlay-alpha);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
   overflow: hidden;
+  backdrop-filter: blur(12px);
+  transition: opacity var(--transition-fast), border-color var(--transition-fast);
 }
 
-.app-header {
+.overlay-wrapper:hover {
+  border-color: var(--border-color-hover);
+}
+
+/* Window Header */
+.window-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  height: 38px;
+  padding: 0 10px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
-  height: 40px;
+  cursor: grab;
+  flex-shrink: 0;
 }
 
-.brand-title {
+.window-header:active {
+  cursor: grabbing;
+}
+
+.header-left {
   display: flex;
   align-items: center;
   gap: 8px;
+  pointer-events: auto;
+}
+
+.app-logo {
+  font-size: 14px;
+}
+
+.app-title {
+  font-size: 12px;
   font-weight: 600;
-  font-size: 13px;
+  letter-spacing: 0.03em;
   color: var(--accent-gold);
-  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
-.app-content {
-  flex: 1;
-  padding: 16px;
+.header-actions {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  overflow-y: auto;
+  align-items: center;
+  gap: 4px;
+  pointer-events: auto;
 }
 
-.status-badge {
+.header-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: none;
   border-radius: var(--radius-sm);
-  font-size: 11px;
   color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: #22c55e;
+.header-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.header-btn.pin-btn.active {
+  color: var(--accent-gold);
+  background: rgba(212, 175, 55, 0.12);
+}
+
+.header-btn.close-btn:hover {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+/* Content Area */
+.overlay-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  overflow-y: auto;
 }
 
 .card {
@@ -120,5 +165,27 @@ body {
 
 .card-subtitle {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: #4ade80;
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #22c55e;
 }

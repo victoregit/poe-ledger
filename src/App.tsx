@@ -1,29 +1,28 @@
+import { WindowHeader } from "./components/core/WindowHeader";
+
 export function App() {
   return (
-    <main className="app-container">
-      <header className="app-header">
-        <div className="brand-title">
-          <span>⚖️</span>
-          <span>Poe Ledger</span>
-        </div>
-        <div className="status-badge">
-          <span className="status-dot"></span>
-          <span>Core v0.1.0</span>
-        </div>
-      </header>
+    <main className="overlay-wrapper">
+      <WindowHeader title="Poe Ledger" isAlwaysOnTop={true} />
 
-      <section className="app-content">
+      <section className="overlay-content">
         <div className="card">
-          <h2 className="card-title">Poe Ledger Core</h2>
+          <h2 className="card-title">Poe Ledger Overlay</h2>
           <p className="card-subtitle">
-            Path of Exile 1 Modular Overlay Framework initialized successfully.
+            Janela de overlay sem bordas, transparente e fixável no topo configurada com sucesso.
           </p>
+          <div className="status-badge">
+            <span className="status-dot"></span>
+            <span>Overlay Ativo</span>
+          </div>
         </div>
 
         <div className="card">
-          <h3 className="card-title">Módulos Ativos</h3>
+          <h3 className="card-title">Controles de Janela</h3>
           <p className="card-subtitle">
-            • Wealth (V1 - Em preparação para a próxima fase)
+            • <strong>Arrastar</strong>: Clique e arraste pelo cabeçalho.<br />
+            • <strong>📌 Pin</strong>: Fixar / desfixar "Always on Top".<br />
+            • <strong>− / ×</strong>: Minimizar e fechar o aplicativo.
           </p>
         </div>
       </section>

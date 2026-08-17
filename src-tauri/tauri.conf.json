@@ -12,14 +12,17 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Poe Ledger",
         "width": 380,
-        "height": 620,
+        "height": 580,
         "minWidth": 260,
-        "minHeight": 80,
+        "minHeight": 44,
         "resizable": true,
-        "decorations": true,
-        "transparent": false
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "shadow": true
       }
     ],
     "security": {
