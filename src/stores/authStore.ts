@@ -14,6 +14,9 @@ export function useAuth() {
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(
     () => settingsManager.getSettings().account.selectedCharacter
   );
+  const [selectedLeague, setSelectedLeagueState] = useState<string>(
+    () => settingsManager.getSettings().account.selectedLeague || "Standard"
+  );
   const [characterItems, setCharacterItems] = useState<PoeItem[]>([]);
   const [stashTabs, setStashTabs] = useState<StashTabSummary[]>([]);
   const [stashItems, setStashItems] = useState<PoeItem[]>([]);
@@ -22,8 +25,19 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
   const [stashError, setStashError] = useState<string | null>(null);
 
+  // Extract all distinct leagues available in the account + standard leagues
+  const availableLeagues = useMemo(() => {
+    const leaguesSet = new Set<string>(["Standard", "Settlers", "Hardcore"]);
+    characters.forEach((c) => {
+      if (c.league && c.league.trim()) {
+        leaguesSet.add(c.league.trim());
+      }
+    });
+    return Array.from(leaguesSet);
+  }, [characters]);
+
   const activeChar = characters.find((c) => c.name === selectedCharacter);
-  const activeLeague = activeChar?.league || settingsManager.getSettings().account.selectedLeague || "Standard";
+  const activeLeague = selectedLeague || activeChar?.league || "Standard";
 
   const loadCharacters = useCallback(async (targetAccount?: string) => {
     const acc = targetAccount || accountName;
@@ -39,9 +53,20 @@ export function useAuth() {
         const exists = chars.some((c) => c.name === saved);
         const charToSelect = exists && saved ? saved : (chars.find((c) => c.current)?.name || chars[0].name);
         setSelectedCharacter(charToSelect);
+
+        const foundChar = chars.find((c) => c.name === charToSelect);
+        if (foundChar?.league) {
+          setSelectedLeagueState(foundChar.league);
+        }
+
         settingsManager.updateSettings((prev) => ({
           ...prev,
-          account: { ...prev.account, accountName: acc, selectedCharacter: charToSelect },
+          account: {
+            ...prev.account,
+            accountName: acc,
+            selectedCharacter: charToSelect,
+            selectedLeague: foundChar?.league || prev.account.selectedLeague,
+          },
         }));
       }
     } catch (e) {
@@ -67,8 +92,9 @@ export function useAuth() {
     }
   }, [accountName, selectedCharacter]);
 
-  const loadStashes = useCallback(async () => {
+  const loadStashes = useCallback(async (targetLeague?: string) => {
     const acc = accountName;
+    const leagueToUse = targetLeague || activeLeague;
     const poesessid = settingsManager.getSettings().account.poesessid;
     if (!acc) return;
 
@@ -76,16 +102,15 @@ export function useAuth() {
     setStashError(null);
 
     try {
-      const tabData = await poeApiService.getStashTabs(acc, activeLeague, poesessid, "pc");
+      const tabData = await poeApiService.getStashTabs(acc, leagueToUse, poesessid, "pc");
       setStashTabs(tabData.tabs);
 
       let allStashItems = [...tabData.items];
       
-      // Load initial active stash tabs (e.g. first 4 tabs)
       const maxTabsToLoad = Math.min(tabData.tabs.length, 6);
       for (let i = 1; i < maxTabsToLoad; i++) {
         try {
-          const items = await poeApiService.getStashTabItems(acc, activeLeague, i, poesessid, "pc");
+          const items = await poeApiService.getStashTabItems(acc, leagueToUse, i, poesessid, "pc");
           allStashItems = allStashItems.concat(items);
         } catch {
           // Continue with next tab
@@ -109,9 +134,14 @@ export function useAuth() {
   useEffect(() => {
     if (selectedCharacter && accountName) {
       loadItems(selectedCharacter);
-      loadStashes();
     }
-  }, [selectedCharacter, accountName, loadItems, loadStashes]);
+  }, [selectedCharacter, accountName, loadItems]);
+
+  useEffect(() => {
+    if (accountName && activeLeague) {
+      loadStashes(activeLeague);
+    }
+  }, [accountName, activeLeague, loadStashes]);
 
   const connectAccount = async (name: string): Promise<boolean> => {
     const cleanName = name.trim();
@@ -127,9 +157,12 @@ export function useAuth() {
       if (chars.length > 0) {
         const first = chars.find((c) => c.current)?.name || chars[0].name;
         setSelectedCharacter(first);
+        const league = chars.find((c) => c.name === first)?.league || "Standard";
+        setSelectedLeagueState(league);
+
         settingsManager.updateSettings((prev) => ({
           ...prev,
-          account: { ...prev.account, accountName: cleanName, selectedCharacter: first },
+          account: { ...prev.account, accountName: cleanName, selectedCharacter: first, selectedLeague: league },
         }));
       }
       return true;
@@ -143,9 +176,35 @@ export function useAuth() {
 
   const selectCharacter = (name: string) => {
     setSelectedCharacter(name);
+    const char = characters.find((c) => c.name === name);
+    if (char?.league) {
+      setSelectedLeagueState(char.league);
+    }
     settingsManager.updateSettings((prev) => ({
       ...prev,
-      account: { ...prev.account, selectedCharacter: name },
+      account: {
+        ...prev.account,
+        selectedCharacter: name,
+        selectedLeague: char?.league || prev.account.selectedLeague,
+      },
+    }));
+  };
+
+  const setLeague = (league: string) => {
+    setSelectedLeagueState(league);
+    // Optionally switch to a character from this league if current char is not in this league
+    const charInLeague = characters.find((c) => c.league === league);
+    if (charInLeague) {
+      setSelectedCharacter(charInLeague.name);
+    }
+
+    settingsManager.updateSettings((prev) => ({
+      ...prev,
+      account: {
+        ...prev.account,
+        selectedLeague: league,
+        selectedCharacter: charInLeague ? charInLeague.name : prev.account.selectedCharacter,
+      },
     }));
   };
 
@@ -180,6 +239,7 @@ export function useAuth() {
   return {
     accountName,
     activeLeague,
+    availableLeagues,
     isAuthenticated: Boolean(accountName),
     characters,
     selectedCharacter,
@@ -189,6 +249,7 @@ export function useAuth() {
     combinedItems,
     connectAccount,
     selectCharacter,
+    setLeague,
     loadCharacters,
     loadItems,
     loadStashes,

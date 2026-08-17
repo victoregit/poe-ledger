@@ -18,6 +18,7 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
   const [settings] = useSettings();
   const {
     selectedCharacter,
+    activeLeague,
     combinedItems,
     loadItems,
     loadStashes,
@@ -35,14 +36,14 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
 
   const isDivine = settings.wealth.defaultCurrency === "divine";
 
-  // Re-valuate items whenever combined items (character + stashes) change
+  // Re-valuate items whenever combined items or active league changes
   const valuateCurrentItems = useCallback(async () => {
     setIsRefreshing(true);
     setErrorMessage(null);
 
     try {
       if (combinedItems && combinedItems.length > 0) {
-        const result = await economyService.valuateItems(combinedItems, "Standard");
+        const result = await economyService.valuateItems(combinedItems, activeLeague);
         setItems(result.valuedItems);
       } else if (!isAuthenticated) {
         setItems(MOCK_VALUED_ITEMS);
@@ -54,7 +55,7 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
     } finally {
       setIsRefreshing(false);
     }
-  }, [combinedItems, isAuthenticated]);
+  }, [combinedItems, activeLeague, isAuthenticated]);
 
   useEffect(() => {
     valuateCurrentItems();
@@ -64,7 +65,7 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
     if (selectedCharacter) {
       await loadItems(selectedCharacter);
     }
-    await loadStashes();
+    await loadStashes(activeLeague);
     await valuateCurrentItems();
   };
 
@@ -114,7 +115,7 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
 
   return (
     <div className="module-view wealth-view">
-      {/* Character Selector Bar */}
+      {/* Character Selector & League Bar */}
       <CharacterSelector />
 
       {/* Stash Notice Banner if POESESSID is missing */}
@@ -142,7 +143,7 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
       <div className="wealth-header-summary">
         <div className="summary-left">
           <div className="summary-label-row">
-            <span className="summary-label">Patrimônio Líquido</span>
+            <span className="summary-label">Patrimônio Líquido ({activeLeague})</span>
             {stashTabs.length > 0 && (
               <span className="stash-active-badge" title={`${stashTabs.length} abas de baú carregadas`}>
                 📦 {stashTabs.length} abas
@@ -205,7 +206,7 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
             <p className="empty-title">Nenhum item avaliado</p>
             <p className="empty-desc">
               {isAuthenticated
-                ? "Nenhum item atingiu o valor mínimo configurado ou adicione seu POESESSID em ⚙️ para ler seu baú."
+                ? `Nenhum item atingiu o valor mínimo configurado na liga ${activeLeague}.`
                 : "Conecte sua conta do PoE acima para visualizar seus itens reais."}
             </p>
           </div>
@@ -265,7 +266,7 @@ export function WealthView({ onNetWorthChange }: WealthViewProps) {
           {filteredItems.length} {filteredItems.length === 1 ? "item" : "itens"} listados
         </span>
         <span className="valuation-currency">
-          Mín: {settings.wealth.minItemValue} div
+          Liga: {activeLeague} • Mín: {settings.wealth.minItemValue} div
         </span>
       </div>
     </div>

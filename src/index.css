@@ -325,10 +325,21 @@ html, body {
   border: 1px solid rgba(244, 63, 94, 0.2);
 }
 
-/* Character Selector */
-.character-selector-container {
-  position: relative;
+/* Character & League Selector Bar */
+.character-selector-wrapper {
   flex-shrink: 0;
+}
+
+.char-league-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.character-selector-container {
+  flex: 1;
+  position: relative;
 }
 
 .character-active-btn {
@@ -406,6 +417,87 @@ html, body {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
   z-index: 100;
   overflow: hidden;
+}
+
+/* League Selector */
+.league-selector-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.league-active-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--accent-gold);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.league-active-btn:hover {
+  background: var(--bg-surface-hover);
+  border-color: rgba(212, 175, 55, 0.4);
+}
+
+.league-icon {
+  font-size: 12px;
+}
+
+.league-name {
+  max-width: 90px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.league-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 140px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.league-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+
+.league-item:hover {
+  background: var(--bg-surface-hover);
+}
+
+.league-item.selected {
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+
+.league-check {
+  color: var(--accent-gold);
+  font-size: 11px;
 }
 
 .dropdown-header {
