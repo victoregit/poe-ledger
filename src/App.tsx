@@ -1,30 +1,37 @@
 import { WindowHeader } from "./components/core/WindowHeader";
+import { ModuleNav } from "./components/core/ModuleNav";
+import { useModules } from "./stores/moduleStore";
+import { useSettings } from "./stores/settingsStore";
 
 export function App() {
+  const { activeModuleId, setActiveModuleId, modules, activeModule } = useModules();
+  const [settings, setSettings] = useSettings();
+
+  const ActiveComponent = activeModule.component;
+
+  const handleTogglePin = () => {
+    setSettings((prev) => ({
+      ...prev,
+      overlay: { ...prev.overlay, alwaysOnTop: !prev.overlay.alwaysOnTop },
+    }));
+  };
+
   return (
     <main className="overlay-wrapper">
-      <WindowHeader title="Poe Ledger" isAlwaysOnTop={true} />
+      <WindowHeader
+        title="Poe Ledger"
+        isAlwaysOnTop={settings.overlay.alwaysOnTop}
+        onToggleAlwaysOnTop={handleTogglePin}
+      />
+
+      <ModuleNav
+        modules={modules}
+        activeModuleId={activeModuleId}
+        onSelectModule={setActiveModuleId}
+      />
 
       <section className="overlay-content">
-        <div className="card">
-          <h2 className="card-title">Poe Ledger Overlay</h2>
-          <p className="card-subtitle">
-            Janela de overlay sem bordas, transparente e fixável no topo configurada com sucesso.
-          </p>
-          <div className="status-badge">
-            <span className="status-dot"></span>
-            <span>Overlay Ativo</span>
-          </div>
-        </div>
-
-        <div className="card">
-          <h3 className="card-title">Controles de Janela</h3>
-          <p className="card-subtitle">
-            • <strong>Arrastar</strong>: Clique e arraste pelo cabeçalho.<br />
-            • <strong>📌 Pin</strong>: Fixar / desfixar "Always on Top".<br />
-            • <strong>− / ×</strong>: Minimizar e fechar o aplicativo.
-          </p>
-        </div>
+        <ActiveComponent />
       </section>
     </main>
   );
