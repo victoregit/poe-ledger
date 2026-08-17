@@ -1,44 +1,81 @@
-# Poe Ledger
+# Poe Ledger ⚖️
 
-Poe Ledger is a modern, modular desktop overlay for **Path of Exile 1**, built from scratch with **Tauri**, **Rust**, **React**, **TypeScript**, and **Vite**.
+Poe Ledger is a high-performance, modular desktop overlay for **Path of Exile 1**, built from scratch with **Tauri 2**, **Rust**, **React 19**, **TypeScript**, and **Vite**.
 
-## Architecture & Principles
+---
 
-- **Official GGG APIs Only**: Built strictly adhering to Grinding Gear Games developer policies (OAuth 2.0 PKCE, public/authenticated endpoints, caching, rate limiting).
+## 🧭 Architecture & Design Principles
+
+```
+React (Vite + TS)
+  ↕  (Tauri IPC Bridge / Events)
+Tauri 2 (Rust)
+  ├── Window Management (Frameless, Transparent, Always-on-top, Draggable)
+  ├── Global Hotkeys (Control+Shift+Space, Control+Shift+R, Control+Shift+M)
+  ├── Path of Exile Official API (OAuth 2.0 PKCE, Characters, Inventory)
+  ├── Economy Service & Price Provider (Dual-layer Cache, Rate Limiting)
+  └── Local Storage & Persistent Settings
+```
+
+- **Official GGG APIs Only**: Adheres 100% to Grinding Gear Games developer policies (OAuth 2.0 PKCE, public endpoints, caching, rate limiting).
 - **Zero Game Tampering**: No memory reading, no DLL injection, no unauthorized hooks.
-- **Modular Core**: Engineered to support multiple independent overlay modules (Wealth, Price Check, Trade, Inventory, Maps).
-- **High-Performance Overlay**: Native window management with transparency, always-on-top, persistent positioning, and minimal resource usage.
+- **Modular Core**: Engineered to support future modules seamlessly:
+  - 💰 **Wealth** (V1 - Active)
+  - 🔍 **Price Check** (V2 - Roadmap)
+  - 🤝 **Trade** (V3 - Roadmap)
+  - 🎒 **Inventory & Stash** (V4 - Roadmap)
+  - 🗺️ **Maps & Economy** (V5 - Roadmap)
+  - ⚙️ **Settings** (V1 - Active)
+- **Overlay & Mini Player**:
+  - Borderless draggable window (`data-tauri-drag-region`).
+  - Native always-on-top toggle (📌).
+  - Compact Mini Player mode (`⤡` / `⤢`) with live net worth summary.
+  - Transparent frosted glass with configurable opacity and scaling.
 
-## Tech Stack
+---
 
-- **Desktop Shell**: Tauri 2 (Rust)
-- **Frontend**: React 19, TypeScript, Vite
-- **Styling**: Modern CSS Design System (Tailored Dark Theme)
-
-## Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v20+ recommended)
+- [Node.js](https://nodejs.org/) (v20+ LTS)
 - [Rust](https://www.rust-lang.org/) & Cargo (with `stable-x86_64-pc-windows-gnu` or `msvc`)
-- C/C++ compiler toolchain (MinGW-w64 / WinLibs or MSVC)
+- C/C++ compiler toolchain (WinLibs GCC / MinGW-w64 or MSVC)
 
 ### Development
 
 ```bash
-# Install frontend dependencies
+# Navigate to project directory
+cd poe-ledger
+
+# Install dependencies
 npm install
 
-# Start Tauri dev overlay
+# Start local Tauri desktop overlay
 npm run tauri dev
 ```
 
-### Build
+### Production Build
 
 ```bash
+# Build standalone Windows desktop application (.exe and .msi)
 npm run tauri build
 ```
 
-## License
+The compiled release executable will be available at `src-tauri/target/release/poe-ledger.exe`.
+
+---
+
+## ⌨️ Global Shortcuts
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl + Shift + Space` | Show / Hide Poe Ledger Overlay |
+| `Ctrl + Shift + R` | Refresh Wealth & Prices |
+| `Ctrl + Shift + M` | Toggle Compact Mini Player Mode |
+
+---
+
+## 📄 License
 
 MIT License. See [LICENSE](LICENSE) for details.
