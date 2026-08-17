@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isTauri } from "../../services/http/isTauri";
 
 interface WindowHeaderProps {
   title?: string;
@@ -26,10 +27,12 @@ export function WindowHeader({
 
   const handleTogglePin = async () => {
     try {
-      const appWindow = getCurrentWindow();
-      const nextPinState = !pinned;
-      await appWindow.setAlwaysOnTop(nextPinState);
-      setPinned(nextPinState);
+      if (isTauri()) {
+        const appWindow = getCurrentWindow();
+        const nextPinState = !pinned;
+        await appWindow.setAlwaysOnTop(nextPinState);
+      }
+      setPinned(!pinned);
       onToggleAlwaysOnTop?.();
     } catch {
       setPinned(!pinned);
@@ -41,11 +44,13 @@ export function WindowHeader({
       onMinimize();
       return;
     }
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.minimize();
-    } catch {
-      // Browser fallback
+    if (isTauri()) {
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.minimize();
+      } catch {
+        // Fallback
+      }
     }
   };
 
@@ -54,11 +59,13 @@ export function WindowHeader({
       onClose();
       return;
     }
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.close();
-    } catch {
-      // Browser fallback
+    if (isTauri()) {
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.close();
+      } catch {
+        // Fallback
+      }
     }
   };
 

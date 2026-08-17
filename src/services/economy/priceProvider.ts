@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { economyCache } from "./economyCache";
+import { isTauri } from "../http/isTauri";
 
 export interface ItemPriceQuote {
   name: string;
@@ -57,32 +58,42 @@ export class PoeNinjaPriceProvider implements PriceProvider {
     }
 
     try {
-      // Fetch currency overview via Native Rust command
-      const rawJson = await invoke<string>("fetch_poe_ninja_overview", {
-        league: league,
-        overviewType: "Currency",
-      });
-
-      const currData = JSON.parse(rawJson);
-      if (currData.lines && Array.isArray(currData.lines)) {
-        const divineEntry = currData.lines.find(
-          (l: { currencyTypeName?: string }) => l.currencyTypeName === "Divine Orb"
-        );
-        if (divineEntry && divineEntry.chaosEquivalent) {
-          divineInChaos = divineEntry.chaosEquivalent;
+      let rawJson = "";
+      if (isTauri()) {
+        rawJson = await invoke<string>("fetch_poe_ninja_overview", {
+          league: league,
+          overviewType: "Currency",
+        });
+      } else {
+        const url = `https://corsproxy.io/?${encodeURIComponent(`https://poe.ninja/api/data/currencyoverview?league=${league}&type=Currency`)}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          rawJson = await res.text();
         }
+      }
 
-        for (const line of currData.lines) {
-          const currencyName = line.currencyTypeName;
-          const chaosValue = line.chaosEquivalent || 0;
-          if (currencyName && chaosValue > 0) {
-            priceMap.set(currencyName.toLowerCase(), {
-              name: currencyName,
-              category: "currency",
-              priceInChaos: chaosValue,
-              priceInDivine: chaosValue / divineInChaos,
-              confidence: "high",
-            });
+      if (rawJson) {
+        const currData = JSON.parse(rawJson);
+        if (currData.lines && Array.isArray(currData.lines)) {
+          const divineEntry = currData.lines.find(
+            (l: { currencyTypeName?: string }) => l.currencyTypeName === "Divine Orb"
+          );
+          if (divineEntry && divineEntry.chaosEquivalent) {
+            divineInChaos = divineEntry.chaosEquivalent;
+          }
+
+          for (const line of currData.lines) {
+            const currencyName = line.currencyTypeName;
+            const chaosValue = line.chaosEquivalent || 0;
+            if (currencyName && chaosValue > 0) {
+              priceMap.set(currencyName.toLowerCase(), {
+                name: currencyName,
+                category: "currency",
+                priceInChaos: chaosValue,
+                priceInDivine: chaosValue / divineInChaos,
+                confidence: "high",
+              });
+            }
           }
         }
       }
