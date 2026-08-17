@@ -25,19 +25,33 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
   const [stashError, setStashError] = useState<string | null>(null);
 
-  // Extract all distinct leagues available in the account + standard leagues
-  const availableLeagues = useMemo(() => {
-    const leaguesSet = new Set<string>(["Standard", "Settlers", "Hardcore"]);
-    characters.forEach((c) => {
-      if (c.league && c.league.trim()) {
-        leaguesSet.add(c.league.trim());
-      }
-    });
-    return Array.from(leaguesSet);
+  // Detect current challenge league name dynamically from characters or fallback to "Settlers"
+  const currentChallengeLeague = useMemo(() => {
+    const nonStandard = characters.find(
+      (c) => c.league && c.league !== "Standard" && c.league !== "Hardcore" && !c.league.toLowerCase().includes("void")
+    );
+    return nonStandard?.league || "Settlers";
   }, [characters]);
 
-  const activeChar = characters.find((c) => c.name === selectedCharacter);
-  const activeLeague = selectedLeague || activeChar?.league || "Standard";
+  // Main leagues requested by user: Liga Atual, Standard, Hardcore
+  const availableLeagues = useMemo(() => {
+    const list: string[] = [];
+    if (currentChallengeLeague && currentChallengeLeague !== "Standard" && currentChallengeLeague !== "Hardcore") {
+      list.push(currentChallengeLeague);
+    }
+    list.push("Standard");
+    list.push("Hardcore");
+    return list;
+  }, [currentChallengeLeague]);
+
+  const activeLeague = selectedLeague || "Standard";
+
+  // Filter characters strictly belonging to the currently active league
+  const leagueCharacters = useMemo(() => {
+    return characters.filter(
+      (c) => c.league && c.league.toLowerCase() === activeLeague.toLowerCase()
+    );
+  }, [characters, activeLeague]);
 
   const loadCharacters = useCallback(async (targetAccount?: string) => {
     const acc = targetAccount || accountName;
@@ -49,15 +63,22 @@ export function useAuth() {
       setCharacters(chars);
 
       if (chars.length > 0) {
-        const saved = settingsManager.getSettings().account.selectedCharacter;
-        const exists = chars.some((c) => c.name === saved);
-        const charToSelect = exists && saved ? saved : (chars.find((c) => c.current)?.name || chars[0].name);
-        setSelectedCharacter(charToSelect);
-
-        const foundChar = chars.find((c) => c.name === charToSelect);
-        if (foundChar?.league) {
-          setSelectedLeagueState(foundChar.league);
+        const savedLeague = settingsManager.getSettings().account.selectedLeague || "Standard";
+        const matchingChars = chars.filter((c) => c.league?.toLowerCase() === savedLeague.toLowerCase());
+        
+        let charToSelect: string | null = null;
+        if (matchingChars.length > 0) {
+          const savedChar = settingsManager.getSettings().account.selectedCharacter;
+          const exists = matchingChars.some((c) => c.name === savedChar);
+          charToSelect = exists && savedChar ? savedChar : (matchingChars.find((c) => c.current)?.name || matchingChars.sort((a, b) => b.level - a.level)[0].name);
+        } else {
+          // If no char in saved league, use highest level char overall and its league
+          const highest = [...chars].sort((a, b) => b.level - a.level)[0];
+          charToSelect = highest.name;
+          setSelectedLeagueState(highest.league || "Standard");
         }
+
+        setSelectedCharacter(charToSelect);
 
         settingsManager.updateSettings((prev) => ({
           ...prev,
@@ -65,7 +86,7 @@ export function useAuth() {
             ...prev.account,
             accountName: acc,
             selectedCharacter: charToSelect,
-            selectedLeague: foundChar?.league || prev.account.selectedLeague,
+            selectedLeague: savedLeague,
           },
         }));
       }
@@ -79,7 +100,10 @@ export function useAuth() {
   const loadItems = useCallback(async (charName?: string) => {
     const char = charName || selectedCharacter;
     const acc = accountName;
-    if (!char || !acc) return;
+    if (!char || !acc) {
+      setCharacterItems([]);
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -113,7 +137,7 @@ export function useAuth() {
           const items = await poeApiService.getStashTabItems(acc, leagueToUse, i, poesessid, "pc");
           allStashItems = allStashItems.concat(items);
         } catch {
-          // Continue with next tab
+          // Continue
         }
       }
 
@@ -134,6 +158,8 @@ export function useAuth() {
   useEffect(() => {
     if (selectedCharacter && accountName) {
       loadItems(selectedCharacter);
+    } else {
+      setCharacterItems([]);
     }
   }, [selectedCharacter, accountName, loadItems]);
 
@@ -192,18 +218,21 @@ export function useAuth() {
 
   const setLeague = (league: string) => {
     setSelectedLeagueState(league);
-    // Optionally switch to a character from this league if current char is not in this league
-    const charInLeague = characters.find((c) => c.league === league);
-    if (charInLeague) {
-      setSelectedCharacter(charInLeague.name);
-    }
+    
+    // Strictly find matching characters from this selected league (highest level first)
+    const matchingChars = characters
+      .filter((c) => c.league?.toLowerCase() === league.toLowerCase())
+      .sort((a, b) => b.level - a.level);
+
+    const targetChar = matchingChars.length > 0 ? matchingChars[0].name : null;
+    setSelectedCharacter(targetChar);
 
     settingsManager.updateSettings((prev) => ({
       ...prev,
       account: {
         ...prev.account,
         selectedLeague: league,
-        selectedCharacter: charInLeague ? charInLeague.name : prev.account.selectedCharacter,
+        selectedCharacter: targetChar,
       },
     }));
   };
@@ -242,6 +271,7 @@ export function useAuth() {
     availableLeagues,
     isAuthenticated: Boolean(accountName),
     characters,
+    leagueCharacters,
     selectedCharacter,
     characterItems,
     stashTabs,

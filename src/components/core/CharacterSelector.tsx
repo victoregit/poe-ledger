@@ -6,6 +6,7 @@ export function CharacterSelector() {
     accountName,
     isAuthenticated,
     characters,
+    leagueCharacters,
     selectedCharacter,
     activeLeague,
     availableLeagues,
@@ -92,28 +93,32 @@ export function CharacterSelector() {
               setIsOpen(!isOpen);
               setIsLeagueOpen(false);
             }}
-            title="Clique para alternar personagem ou conta"
+            title="Clique para alternar personagem desta liga ou trocar de conta"
           >
             <div className="char-badge-icon">🧙</div>
             <div className="char-info-text">
               <div className="char-primary-row">
-                <span className="char-name">{activeChar?.name || "Selecionar Personagem"}</span>
+                <span className="char-name">
+                  {activeChar?.name || (leagueCharacters.length > 0 ? "Selecionar Personagem" : "Sem personagem nesta liga")}
+                </span>
                 {activeChar && (
                   <span className="char-level-badge">Nv. {activeChar.level}</span>
                 )}
               </div>
               <div className="char-sub-row">
-                <span className="char-class">{activeChar?.class || "Classe"}</span>
+                <span className="char-class">{activeChar?.class || (leagueCharacters.length > 0 ? "Classe" : "0 personagens")}</span>
               </div>
             </div>
             <span className="dropdown-arrow">{isOpen ? "▲" : "▼"}</span>
           </button>
 
-          {/* Character Dropdown */}
+          {/* Character Dropdown (Strictly filtered by active league) */}
           {isOpen && (
             <div className="character-dropdown-menu">
               <div className="dropdown-header">
-                <span className="account-title">Conta: {accountName}</span>
+                <span className="account-title">
+                  Personagens em <strong>{activeLeague}</strong> ({leagueCharacters.length})
+                </span>
                 <div className="dropdown-header-actions">
                   <button
                     type="button"
@@ -143,10 +148,10 @@ export function CharacterSelector() {
               <div className="dropdown-list">
                 {isLoading ? (
                   <div className="dropdown-loading">Carregando personagens...</div>
-                ) : characters.length === 0 ? (
-                  <div className="dropdown-empty">Nenhum personagem encontrado.</div>
+                ) : leagueCharacters.length === 0 ? (
+                  <div className="dropdown-empty">Nenhum personagem nesta liga ({activeLeague}).</div>
                 ) : (
-                  characters.map((c) => {
+                  leagueCharacters.map((c) => {
                     const isSelected = c.name === selectedCharacter;
                     return (
                       <button
@@ -161,7 +166,7 @@ export function CharacterSelector() {
                         <div className="item-char-left">
                           <span className="item-char-name">{c.name}</span>
                           <span className="item-char-meta">
-                            {c.class} • {c.league}
+                            {c.class}
                           </span>
                         </div>
                         <span className="item-char-level">Nv. {c.level}</span>
@@ -183,22 +188,23 @@ export function CharacterSelector() {
               setIsLeagueOpen(!isLeagueOpen);
               setIsOpen(false);
             }}
-            title="Clique para alternar a liga ativa"
+            title="Alternar Liga: Liga Atual / Standard / Hardcore"
           >
             <span className="league-icon">🏆</span>
             <span className="league-name">{activeLeague}</span>
             <span className="dropdown-arrow">{isLeagueOpen ? "▲" : "▼"}</span>
           </button>
 
-          {/* League Dropdown */}
+          {/* League Dropdown (Restricted to Liga Atual, Standard, Hardcore) */}
           {isLeagueOpen && (
             <div className="league-dropdown-menu">
               <div className="dropdown-header">
-                <span className="account-title">Selecionar Liga</span>
+                <span className="account-title">Ligas</span>
               </div>
               <div className="dropdown-list">
                 {availableLeagues.map((lg) => {
                   const isSelected = lg.toLowerCase() === activeLeague.toLowerCase();
+                  const countInLeague = characters.filter((c) => c.league?.toLowerCase() === lg.toLowerCase()).length;
                   return (
                     <button
                       key={lg}
@@ -209,7 +215,12 @@ export function CharacterSelector() {
                         setIsLeagueOpen(false);
                       }}
                     >
-                      <span>{lg}</span>
+                      <div className="league-item-info">
+                        <span className="league-item-name">{lg}</span>
+                        {countInLeague > 0 && (
+                          <span className="league-char-count">{countInLeague} {countInLeague === 1 ? "char" : "chars"}</span>
+                        )}
+                      </div>
                       {isSelected && <span className="league-check">✓</span>}
                     </button>
                   );

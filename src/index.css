@@ -485,6 +485,24 @@ html, body {
   transition: background var(--transition-fast);
 }
 
+.league-item-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.league-item-name {
+  font-size: 11px;
+}
+
+.league-char-count {
+  font-size: 9px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
 .league-item:hover {
   background: var(--bg-surface-hover);
 }
