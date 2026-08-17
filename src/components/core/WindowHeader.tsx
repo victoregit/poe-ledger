@@ -4,7 +4,10 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 interface WindowHeaderProps {
   title?: string;
   isAlwaysOnTop?: boolean;
+  isCompact?: boolean;
+  compactSummary?: string;
   onToggleAlwaysOnTop?: () => void;
+  onToggleCompact?: () => void;
   onMinimize?: () => void;
   onClose?: () => void;
 }
@@ -12,7 +15,10 @@ interface WindowHeaderProps {
 export function WindowHeader({
   title = "Poe Ledger",
   isAlwaysOnTop = true,
+  isCompact = false,
+  compactSummary,
   onToggleAlwaysOnTop,
+  onToggleCompact,
   onMinimize,
   onClose,
 }: WindowHeaderProps) {
@@ -26,7 +32,6 @@ export function WindowHeader({
       setPinned(nextPinState);
       onToggleAlwaysOnTop?.();
     } catch {
-      // Fallback if running outside Tauri webview
       setPinned(!pinned);
     }
   };
@@ -58,31 +63,55 @@ export function WindowHeader({
   };
 
   return (
-    <header className="window-header" data-tauri-drag-region>
+    <header className={`window-header ${isCompact ? "compact-header" : ""}`} data-tauri-drag-region>
       <div className="header-left" data-tauri-drag-region>
         <span className="app-logo" data-tauri-drag-region>⚖️</span>
-        <span className="app-title" data-tauri-drag-region>{title}</span>
+        {isCompact && compactSummary ? (
+          <span className="compact-wealth-text" data-tauri-drag-region>
+            {compactSummary}
+          </span>
+        ) : (
+          <span className="app-title" data-tauri-drag-region>{title}</span>
+        )}
       </div>
 
       <div className="header-actions">
-        <button
-          type="button"
-          className={`header-btn pin-btn ${pinned ? "active" : ""}`}
-          onClick={handleTogglePin}
-          title={pinned ? "Sempre no topo (Ativo)" : "Fixar no topo"}
-          aria-label="Fixar janela no topo"
-        >
-          📌
-        </button>
-        <button
-          type="button"
-          className="header-btn"
-          onClick={handleMinimize}
-          title="Minimizar"
-          aria-label="Minimizar janela"
-        >
-          −
-        </button>
+        {onToggleCompact && (
+          <button
+            type="button"
+            className="header-btn toggle-compact-btn"
+            onClick={onToggleCompact}
+            title={isCompact ? "Expandir janela" : "Modo Mini Player"}
+            aria-label="Alternar modo mini player"
+          >
+            {isCompact ? "⤢" : "⤡"}
+          </button>
+        )}
+
+        {!isCompact && (
+          <button
+            type="button"
+            className={`header-btn pin-btn ${pinned ? "active" : ""}`}
+            onClick={handleTogglePin}
+            title={pinned ? "Sempre no topo (Ativo)" : "Fixar no topo"}
+            aria-label="Fixar janela no topo"
+          >
+            📌
+          </button>
+        )}
+
+        {!isCompact && (
+          <button
+            type="button"
+            className="header-btn"
+            onClick={handleMinimize}
+            title="Minimizar para bandeja"
+            aria-label="Minimizar janela"
+          >
+            −
+          </button>
+        )}
+
         <button
           type="button"
           className="header-btn close-btn"
@@ -96,3 +125,5 @@ export function WindowHeader({
     </header>
   );
 }
+
+export default WindowHeader;

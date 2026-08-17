@@ -1,33 +1,73 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSettings } from "../../stores/settingsStore";
+import { useAuth } from "../../stores/authStore";
+import { CharacterSelector } from "../../components/core/CharacterSelector";
 import { MOCK_VALUED_ITEMS } from "./mockWealthData";
 import { ValuedItem } from "../../types/item";
+import { economyService } from "../../services/economy/economyService";
 
 type FilterCategory = "all" | "equipment" | "currency" | "other";
 
 const DIVINE_TO_CHAOS_RATIO = 150;
 
-export function WealthView() {
+interface WealthViewProps {
+  onNetWorthChange?: (totalText: string) => void;
+}
+
+export function WealthView({ onNetWorthChange }: WealthViewProps) {
   const [settings] = useSettings();
+  const { selectedCharacter, isAuthenticated } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>("all");
   const [items, setItems] = useState<ValuedItem[]>(MOCK_VALUED_ITEMS);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      // Simulate real-time price fluctuation slightly on mock data
-      setItems((prev) =>
-        prev.map((it) => ({
-          ...it,
-          lastUpdated: Date.now(),
-        }))
-      );
-      setIsRefreshing(false);
-    }, 600);
-  };
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const isDivine = settings.wealth.defaultCurrency === "divine";
+
+  // Calculate total net worth
+  const totalNetWorth = useMemo(() => {
+    const totalDiv = items.reduce((acc, it) => {
+      const valInDiv = it.currency === "divine" ? it.totalPrice : it.totalPrice / DIVINE_TO_CHAOS_RATIO;
+      return acc + valInDiv;
+    }, 0);
+
+    return isDivine ? totalDiv : totalDiv * DIVINE_TO_CHAOS_RATIO;
+  }, [items, isDivine]);
+
+  const formatPrice = (val: number) => {
+    if (val >= 100) return val.toFixed(1);
+    if (val >= 1) return val.toFixed(2);
+    return val.toFixed(3);
+  };
+
+  useEffect(() => {
+    const summaryText = `${formatPrice(totalNetWorth)} ${isDivine ? "div" : "c"}`;
+    onNetWorthChange?.(summaryText);
+  }, [totalNetWorth, isDivine, onNetWorthChange]);
+
+  const loadData = useCallback(async () => {
+    setIsRefreshing(true);
+    setErrorMessage(null);
+    try {
+      if (isAuthenticated && selectedCharacter) {
+        // Valuate items using the economy service
+        const itemsToValuate = items.map((vi) => vi.item);
+        const result = await economyService.valuateItems(itemsToValuate, "Standard");
+        setItems(result.valuedItems);
+      } else {
+        // Fallback to mock dataset
+        setItems(MOCK_VALUED_ITEMS);
+      }
+    } catch (e) {
+      setErrorMessage(e instanceof Error ? e.message : "Não foi possível atualizar os preços.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isAuthenticated, selectedCharacter, items]);
+
+  const handleRefresh = () => {
+    loadData();
+  };
 
   // Filter and sort items
   const filteredItems = useMemo(() => {
@@ -52,24 +92,22 @@ export function WealthView() {
       .slice(0, settings.wealth.maxDisplayedItems);
   }, [items, selectedCategory, settings.wealth.minItemValue, settings.wealth.maxDisplayedItems]);
 
-  // Calculate total net worth
-  const totalNetWorth = useMemo(() => {
-    const totalDiv = items.reduce((acc, it) => {
-      const valInDiv = it.currency === "divine" ? it.totalPrice : it.totalPrice / DIVINE_TO_CHAOS_RATIO;
-      return acc + valInDiv;
-    }, 0);
-
-    return isDivine ? totalDiv : totalDiv * DIVINE_TO_CHAOS_RATIO;
-  }, [items, isDivine]);
-
-  const formatPrice = (val: number) => {
-    if (val >= 100) return val.toFixed(1);
-    if (val >= 1) return val.toFixed(2);
-    return val.toFixed(3);
-  };
-
   return (
     <div className="module-view wealth-view">
+      {/* Character Selector Bar */}
+      <CharacterSelector />
+
+      {/* Error Alert Banner */}
+      {errorMessage && (
+        <div className="error-alert-banner">
+          <span className="error-icon">⚠️</span>
+          <span className="error-text">{errorMessage}</span>
+          <button className="error-retry-btn" onClick={handleRefresh}>
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
       {/* Header Summary */}
       <div className="wealth-header-summary">
         <div className="summary-left">
@@ -87,6 +125,7 @@ export function WealthView() {
             onClick={handleRefresh}
             title="Atualizar dados de preços"
             aria-label="Atualizar dados"
+            disabled={isRefreshing}
           >
             ↻
           </button>

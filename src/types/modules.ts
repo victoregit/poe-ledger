@@ -11,7 +11,7 @@ export interface ModuleDefinition {
   enabled: boolean;
   isV1: boolean;
   order: number;
-  component: ComponentType<unknown>;
+  component: ComponentType<any>;
 }
 
 export interface ModuleRegistryState {
