@@ -1,4 +1,5 @@
 import { economyCache } from "./economyCache";
+import { httpFetch } from "../http/httpClient";
 
 export interface ItemPriceQuote {
   name: string;
@@ -58,14 +59,17 @@ export class PoeNinjaPriceProvider implements PriceProvider {
     }
 
     try {
-      // 1. Fetch currency overview from poe.ninja
+      // 1. Fetch currency overview from poe.ninja using native HTTP client
       const currUrl = `${POE_NINJA_BASE}/currencyoverview?league=${encodeURIComponent(league)}&type=Currency`;
-      const currRes = await fetch(currUrl);
+      const currRes = await httpFetch(currUrl, {
+        headers: {
+          "User-Agent": "PoeLedger/0.1.0",
+        },
+      });
       
       if (currRes.ok) {
         const currData = await currRes.json();
         if (currData.lines && Array.isArray(currData.lines)) {
-          // Find Divine Orb exchange rate to compute divine values
           const divineEntry = currData.lines.find((l: { currencyTypeName?: string }) => l.currencyTypeName === "Divine Orb");
           if (divineEntry && divineEntry.chaosEquivalent) {
             divineInChaos = divineEntry.chaosEquivalent;
@@ -87,7 +91,6 @@ export class PoeNinjaPriceProvider implements PriceProvider {
         }
       }
     } catch {
-      // poe.ninja may be rate limited or blocked by CORS in web view; fallbacks are preserved
       console.log("Using cached/fallback price database for economy service");
     }
 

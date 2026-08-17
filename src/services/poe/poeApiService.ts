@@ -1,6 +1,7 @@
 import { poeAuthService } from "./poeAuthService";
 import { parsePoeItemList, GggRawItem } from "./poeItemParser";
 import { PoeItem } from "../../types/item";
+import { httpFetch } from "../http/httpClient";
 
 export interface GggCharacter {
   id?: string;
@@ -52,7 +53,7 @@ class PoeApiService {
   private lastRateLimitState: string | null = null;
 
   /**
-   * Fetches public characters for a given PoE account name
+   * Fetches public characters for a given PoE account name using native desktop HTTP client
    */
   public async getPublicCharacters(accountName: string, realm: string = "pc"): Promise<GggCharacter[]> {
     if (!accountName || accountName.trim() === "") {
@@ -65,7 +66,7 @@ class PoeApiService {
 
     const url = `${POE_PUBLIC_BASE}/get-characters?accountName=${encodeURIComponent(accountName.trim())}&realm=${realm}`;
     
-    const response = await fetch(url, {
+    const response = await httpFetch(url, {
       headers: {
         "User-Agent": "PoeLedger/0.1.0 (contact: dev@poeledger.local)",
       },
@@ -117,7 +118,7 @@ class PoeApiService {
 
     const url = `${POE_PUBLIC_BASE}/get-items?accountName=${encodeURIComponent(accountName.trim())}&character=${encodeURIComponent(characterName.trim())}&realm=${realm}`;
 
-    const response = await fetch(url, {
+    const response = await httpFetch(url, {
       headers: {
         "User-Agent": "PoeLedger/0.1.0 (contact: dev@poeledger.local)",
       },
@@ -170,7 +171,7 @@ class PoeApiService {
       }
     }
 
-    const response = await fetch(`${POE_API_BASE}${endpoint}`, {
+    const response = await httpFetch(`${POE_API_BASE}${endpoint}`, {
       headers: {
         Authorization: `Bearer ${session.token.access_token}`,
         "User-Agent": "PoeLedger/0.1.0 (contact: dev@poeledger.local)",

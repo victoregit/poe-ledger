@@ -18,6 +18,15 @@
     "global-shortcut:default",
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
-    "global-shortcut:allow-is-registered"
+    "global-shortcut:allow-is-registered",
+    "http:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://*.pathofexile.com/*" },
+        { "url": "https://*.poecdn.com/*" },
+        { "url": "https://*.poe.ninja/*" }
+      ]
+    }
   ]
 }
